@@ -1,13 +1,18 @@
 ﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Metrics Validation and Normalization Script
+========================================================================
+                   Stage 3: Metrics Extraction (Python)
+========================================================================
+ログファイルからメトリクスを抽出するスクリプト。
 
-User Customization File
+カスタマイズポイント:
+- 新しいメトリクスをMETRICSリストに追加
+- カスタムMetricクラスを定義してextract()メソッドを実装
 
-Add new metrics by:
-Step 1: Define a Metric subclass
-Step 2: Add class to METRICS list (no () needed)
+使い方:
+  Step 1: Define a Metric subclass
+  Step 2: Add class to METRICS list (no () needed)
 """
 import os
 import sys
@@ -35,7 +40,7 @@ from tools.metric_framework import (
 # ============================================================================
 
 class MemoryUsageMetric(Metric):
-    """メモリ使用量メトリクス（低いほど良い）"""
+    """メモリ使用量メトリクス(低いほど良い)"""
     
     def __init__(self):
         super().__init__(
@@ -46,11 +51,7 @@ class MemoryUsageMetric(Metric):
         )
     
     def extract(self, testcase_name, log_dir, log_content):
-        """ログからメモリ使用量を抽出
-        
-        driver.pyで測定されたメモリ使用量を読み取ります。
-        例: "calculator: 0.053s, 0 errors, 1234 KB"
-        """
+        """Extract memory usage from driver.py output"""
         import re
         
         # aggregated.logから該当行を検索
@@ -68,7 +69,7 @@ class MemoryUsageMetric(Metric):
 # METRICS List
 # ============================================================================
 # 
-# 閾値の指定方法（任意）:
+# 閾値の指定方法(任意):
 # メトリクス定義時に threshold パラメータを追加できます。
 # 
 # 例:
@@ -79,7 +80,7 @@ class MemoryUsageMetric(Metric):
 #               label="My Metric",
 #               type=MEASURED,
 #               direction=LOWER,
-#               threshold=100  # ← 閾値を指定（任意）
+#               threshold=100  # ← 閾値を指定(任意)
 #           )
 # 
 # 閾値が指定されたメトリクスは、レポートに自動的に閾値列が表示されます。

@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Metrics Validation and Normalization Script
+========================================================================
+                   Stage 3: Metrics Extraction (Verilog)
+========================================================================
+ログファイルからメトリクスを抽出するスクリプト。
 
-User Customization File
+カスタマイズポイント:
+- 新しいメトリクスをMETRICSリストに追加
+- カスタムMetricクラスを定義してextract()メソッドを実装
 
-Add new metrics by:
-Step 1: Define a Metric subclass
-Step 2: Add class to METRICS list (no () needed)
+使い方:
+  Step 1: Define a Metric subclass
+  Step 2: Add class to METRICS list (no () needed)
 """
-import os
 import sys
+import os
 import io
 
 # Set UTF-8 encoding for stdout on Windows
@@ -103,7 +108,7 @@ class VcdSizeMetric(Metric):
 
 
 class VcdSimilarityMetric(Metric):
-    """波形一致性メトリクス（比較）"""
+    """波形一致性メトリクス(比較)"""
     
     def __init__(self):
         super().__init__(
@@ -134,7 +139,7 @@ class VcdSimilarityMetric(Metric):
 # METRICS List
 # ============================================================================
 # 
-# 閾値の指定方法（任意）:
+# 閾値の指定方法(任意):
 # メトリクス定義時に threshold パラメータを追加できます。
 # 
 # 例:
@@ -145,7 +150,7 @@ class VcdSimilarityMetric(Metric):
 #               label="My Metric",
 #               type=MEASURED,
 #               direction=LOWER,
-#               threshold=100  # ← 閾値を指定（任意）
+#               threshold=100  # ← 閾値を指定(任意)
 #           )
 # 
 # 閾値が指定されたメトリクスは、レポートに自動的に閾値列が表示されます。

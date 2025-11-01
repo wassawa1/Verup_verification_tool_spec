@@ -1,36 +1,5 @@
 {
-  "project": "example-project",
+  "project": "iverilog-verification",
   "old_version": "1.2.3",
-  "new_version": "2.0.0",
-  "description": "プロジェクト設定ファイル。バージョン比較のために old_version と new_version を指定してください。",
-  
-  "simulation_tool": "iverilog",
-  "tool_config": {
-    "iverilog": {
-      "compile_cmd": ["iverilog", "-o", "{output}", "{input}"],
-      "simulate_cmd": ["vvp", "{compiled}"],
-      "vcd_option": "-vcd"
-    },
-    "vivado": {
-      "compile_cmd": ["xvlog", "{input}"],
-      "simulate_cmd": ["xsim", "{design}", "-R"],
-      "vcd_option": "-wdb"
-    },
-    "modelsim": {
-      "compile_cmd": ["vlog", "{input}"],
-      "simulate_cmd": ["vsim", "-c", "work.{design}", "-do", "run -all; quit"],
-      "vcd_option": "-vcd"
-    }
-  },
-  
-  "debug_mode": false,
-  "dry_run": false,
-  
-  "directories": {
-    "testcases": "testcases",
-    "sim_new": "sim_new",
-    "sim_old": "sim_old",
-    "tmp": "tmp",
-    "reports": "reports"
-  }
+  "new_version": "2.0.0"
 }

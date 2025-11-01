@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Simulate environment preparation and print key=value lines.
-Outputs:
-  project, old_version, new_version, directories
+"""
+Environment preparation script for Verilog verification
+- Loads settings from settings.json
+- Creates necessary directories
+- Outputs environment variables as key=value lines
 """
 import os
 import json

@@ -255,9 +255,9 @@ def build_markdown_report(context):
     
     lines.append(f"**生成日時**: {readable_date}\n")
     
-    # Overview - Large and prominent
-    result_icon = "✅ **PASSED**" if context['passed'] else "❌ **FAILED**"
-    lines.append(f"## 検証結果: {result_icon}\n")
+    # Overview - Large and prominent with better icons
+    result_icon = "🎉 **合格 (PASSED)**" if context['passed'] else "⚠️ **不合格 (FAILED)**"
+    lines.append(f"## {result_icon}\n")
     
     # Test environment info (Detailed)
     if context.get('project'):
@@ -308,14 +308,14 @@ def build_markdown_report(context):
             old_details = tc_data.get("old", {})
             has_old_data = bool(old_details)
             
-            lines.append(f"\n### {testcase_name}\n")
+            lines.append(f"\n### 📌 {testcase_name}\n")
             
             # Show old/new comparison if old data available
             if has_old_data:
-                lines.append("| 項目 | 旧バージョン | 新バージョン | 閾値 | 判定 |")
+                lines.append("| 項目 | 📊 旧バージョン | 📊 新バージョン | ⚖️ 閾値 | ✔️ 判定 |")
                 lines.append("|:---|---:|---:|---:|:---:|")
             else:
-                lines.append("| 項目 | 値 | 閾値 | 判定 |")
+                lines.append("| 項目 | 📊 値 | ⚖️ 閾値 | ✔️ 判定 |")
                 lines.append("|:---|---:|---:|:---:|")
             
             # Display all metrics dynamically
@@ -353,25 +353,25 @@ def build_markdown_report(context):
                     new_str = "—"
                     # Determine pass/fail for comparison metrics (e.g., similarity >= 100%)
                     if isinstance(new_value, (int, float)):
-                        judgment = "○" if new_value >= 100.0 else "✗"
+                        judgment = "✅" if new_value >= 100.0 else "❌"
                     else:
-                        judgment = "○"
+                        judgment = "✅"
                 else:
                     new_str = format_value(new_value)
                     old_str = format_value(old_value) if has_old_data else None
                     
                     # Determine pass/fail for measured metrics (dynamic threshold check)
-                    judgment = "○"  # Default pass
+                    judgment = "✅"  # Default pass
                     threshold_value = thresholds.get(metric_key)
                     if threshold_value is not None and isinstance(new_value, (int, float)):
                         # Get evaluation direction from context
                         metric_eval = metric_evaluation.get(metric_key, "lower_is_better")
                         if metric_eval == "lower_is_better":
                             if new_value > threshold_value:
-                                judgment = "✗"
+                                judgment = "❌"
                         elif metric_eval == "higher_is_better":
                             if new_value < threshold_value:
-                                judgment = "✗"
+                                judgment = "❌"
                 
                 # Determine threshold display (dynamic)
                 threshold_value = thresholds.get(metric_key)
@@ -394,17 +394,17 @@ def build_markdown_report(context):
             
             lines.append("")
     
-    # Conclusion
+    # Conclusion with better formatting
     lines.append("\n## 🎯 結論\n")
     if context['passed']:
-        lines.append("✅ **検証に合格しました**\n")
+        lines.append("### ✅ 検証に合格しました\n")
         lines.append("新バージョンは指定された閾値内で正常に動作しています。")
     else:
-        lines.append("❌ **検証に不合格です**\n")
+        lines.append("### ❌ 検証に不合格です\n")
         lines.append("以下の項目が閾値を超過しています：\n")
         if context.get('messages'):
             for m in context['messages']:
-                lines.append(f"- {m}")
+                lines.append(f"- ⚠️ {m}")
     
     lines.append("\n")
     

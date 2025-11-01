@@ -1,40 +1,29 @@
 name: Version Upgrade Verification Pipeline
 
-# シンプルで保守性の高いワークフロー
-# ロジックは Makefile に集約
-#
-on:
+on: 
+  push:
   workflow_dispatch:
     inputs:
-      project_name:
-        description: 'Project identifier'
+      example:
+        description: 'Example to run (iverilog, python, template, or all)'
         required: false
-        default: 'design_verification'
-      python_version:
-        description: 'Python version'
-        required: false
-        default: '3.x'
-      threshold_latency:
-        description: 'Latency threshold (ms)'
-        required: false
-        default: '2000'
-      threshold_errors:
-        description: 'Error threshold'
-        required: false
-        default: '0'
-
-env:
-  PYTHON_VERSION: ${{ github.event.inputs.python_version || '3.x' }}
-  PROJECT: ${{ github.event.inputs.project_name || 'design_verification' }}
-  THRESHOLD_LATENCY: ${{ github.event.inputs.threshold_latency || '2000' }}
-  THRESHOLD_ERRORS: ${{ github.event.inputs.threshold_errors || '0' }}
-  OLD_VERSION: 'iverilog_10.2'
-  NEW_VERSION: 'iverilog_11.0'
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - iverilog
+          - python
+          - template
 
 jobs:
   verify:
-    name: 'Version Upgrade Verification'
+    name: 'Verify ${{ matrix.example }}'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: ${{ (github.event.inputs.example || 'all') == 'all' && fromJSON('["iverilog", "python", "template"]') || fromJSON(format('["{0}"]', github.event.inputs.example || 'all')) }}
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,37 +31,39 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.x'
 
-      - name: Initialize environment
+      - name: Install Icarus Verilog (for iverilog example)
+        if: matrix.example == 'iverilog'
         run: |
-          mkdir -p reports logs sim_new sim_old testcases tmp
-          rm -f stage*_output.txt
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Setup example
+        run: make setup-${{ matrix.example }}
 
       - name: Run verification pipeline
-        env:
-          PROJECT: ${{ env.PROJECT }}
-          THRESHOLD_LATENCY: ${{ env.THRESHOLD_LATENCY }}
-          THRESHOLD_ERRORS: ${{ env.THRESHOLD_ERRORS }}
-          OLD_VERSION: ${{ env.OLD_VERSION }}
-          NEW_VERSION: ${{ env.NEW_VERSION }}
-        run: python run_pipeline.py
+        run: make test
 
-      - name: Verify reports generated
+      - name: Display report summary
         if: always()
         run: |
-          echo "📋 Reports directory contents:"
-          ls -la reports/ || echo "❌ reports directory is empty"
-          echo ""
-          echo "📋 Latest report:"
+          echo "📋 Verification Report:"
           ls -lrt reports/*.md 2>/dev/null | tail -1 || echo "❌ No reports found"
+          echo ""
+          if [ -f reports/report-*.md ]; then
+            LATEST_REPORT=$(ls -t reports/report-*.md | head -1)
+            echo "=== Report Summary ==="
+            tail -20 "$LATEST_REPORT"
+          fi
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: verification-report
-          path: reports/
-          retention-days: 90
+          name: verification-report-${{ matrix.example }}
+          path: reports/*.md
+          retention-days: 30
+
 
 

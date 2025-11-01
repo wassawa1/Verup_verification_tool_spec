@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Environment preparation and setup script
+Environment preparation script for Python verification
 - Loads settings from settings.json
 - Sets up Python environments using uv
 - Outputs environment variables as key=value lines

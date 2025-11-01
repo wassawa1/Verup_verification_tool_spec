@@ -24,33 +24,41 @@ GitHub Actions や `act` を用いて CI 上で再現可能な形で実行でき
 ├─ examples/        # Python・Verilog のサンプルコード
 ├─ scripts/         # プロジェクト設定/テスト実行ロジック
 │   ├─ settings.json
+│   ├─ envs.py        # バージョン環境定義
 │   ├─ driver.py    # 入力→実行→ログ取得処理
-│   └─ monitor.py   # メトリクス定義（時間・メモリ・エラー等）
+│   ├─ monitor.py   # メトリクス定義（時間・メモリ・エラー等）
+│   └─ scoreboard.py   # メトリクス評価（合否判定）
 ├─ testcases/       # テスト入力ファイル
-├─ tools/           # CI 実行/補助ツール
+├─ tools/           # フレームワーク・ユーティリティ
 ├─ run_pipeline.py  # パイプライン一括実行スクリプト
 └─ Makefile         # setup と test 実行管理
 ```
 
 ---
 
-## ⚙ 実行方法（ローカル）
+## 🚀 Quick Start
 
-### 1. セットアップ
+### 1. サンプルを選択してセットアップ
 ```bash
-make setup-python      # Python 環境構築
-make setup-iverilog    # Icarus Verilog セットアップ（必要な場合）
+# Python版（推奨）
+make setup-python
+
+# または Verilog版
+make setup-iverilog
+
+# または テンプレートから新規プロジェクト開始
+make setup-template
 ```
 
 ### 2. テスト実行
 ```bash
-make test              # 全テスト実行
+make test
 ```
 
-### 3. 直接スクリプトで実行する場合
-```bash
-python run_pipeline.py
-```
+詳細は各サンプルのREADMEを参照:
+- Python版: [`examples/python/README.md`](examples/python/README.md)
+- Verilog版: [`examples/iverilog/README.md`](examples/iverilog/README.md)
+- テンプレート: [`examples/template/README.md`](examples/template/README.md)
 
 ---
 
@@ -65,16 +73,20 @@ on:
   workflow_dispatch:
 
 jobs:
-  decide-pass-fail:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: make setup-python
-      - run: make test
-      - uses: actions/upload-artifact@v4
+      - name: Setup
+        run: make setup-python
+      - name: Run verification
+        run: make test
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: report
-          path: out/report.txt
+          name: verification-report
+          path: reports/*.md
 ```
 
 ---

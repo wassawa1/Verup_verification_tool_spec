@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Scoreboard: メトリクスの合否判定
-monitor.pyで定義された閾値を使用して、各メトリクスの合否を判定します
+========================================================================
+                   Stage 4: Validation & Scoring (Verilog)
+========================================================================
+メトリクスの合否判定を行うスクリプト。
 
 設計方針:
-  - 閾値は monitor.py で一元管理（METRIC_THRESHOLDS）
-  - scoreboard.py は判定ロジックのみを実装
+- 閾値は monitor.py で一元管理（METRIC_THRESHOLDS）
+- scoreboard.py は判定ロジックのみを実装
+"""
   - 一貫性を保つため、閾値の重複定義を排除
 """
 import os
