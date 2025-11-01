@@ -1,0 +1,15 @@
+{
+  "project": "python-test-suite",
+  "old_version": "Python 3.9",
+  "new_version": "Python 3.14",
+  "description": "Python version upgrade verification. Change old_version and new_version to test different Python versions.",
+  
+  
+  "directories": {
+    "testcases": "testcases",
+    "sim_new": "sim_new",
+    "sim_old": "sim_old",
+    "tmp": "tmp",
+    "reports": "reports"
+  }
+}

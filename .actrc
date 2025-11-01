@@ -1,0 +1,4 @@
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
+--pull=false
+-a ./tmp/act-artifacts
+--artifact-server-path ./tmp/act-artifacts

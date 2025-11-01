@@ -1,0 +1,78 @@
+name: Version Upgrade Verification Pipeline
+
+# シンプルで保守性の高いワークフロー
+# ロジックは Makefile に集約
+#
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project identifier'
+        required: false
+        default: 'design_verification'
+      python_version:
+        description: 'Python version'
+        required: false
+        default: '3.x'
+      threshold_latency:
+        description: 'Latency threshold (ms)'
+        required: false
+        default: '2000'
+      threshold_errors:
+        description: 'Error threshold'
+        required: false
+        default: '0'
+
+env:
+  PYTHON_VERSION: ${{ github.event.inputs.python_version || '3.x' }}
+  PROJECT: ${{ github.event.inputs.project_name || 'design_verification' }}
+  THRESHOLD_LATENCY: ${{ github.event.inputs.threshold_latency || '2000' }}
+  THRESHOLD_ERRORS: ${{ github.event.inputs.threshold_errors || '0' }}
+  OLD_VERSION: 'iverilog_10.2'
+  NEW_VERSION: 'iverilog_11.0'
+
+jobs:
+  verify:
+    name: 'Version Upgrade Verification'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Initialize environment
+        run: |
+          mkdir -p reports logs sim_new sim_old testcases tmp
+          rm -f stage*_output.txt
+
+      - name: Run verification pipeline
+        env:
+          PROJECT: ${{ env.PROJECT }}
+          THRESHOLD_LATENCY: ${{ env.THRESHOLD_LATENCY }}
+          THRESHOLD_ERRORS: ${{ env.THRESHOLD_ERRORS }}
+          OLD_VERSION: ${{ env.OLD_VERSION }}
+          NEW_VERSION: ${{ env.NEW_VERSION }}
+        run: python run_pipeline.py
+
+      - name: Verify reports generated
+        if: always()
+        run: |
+          echo "📋 Reports directory contents:"
+          ls -la reports/ || echo "❌ reports directory is empty"
+          echo ""
+          echo "📋 Latest report:"
+          ls -lrt reports/*.md 2>/dev/null | tail -1 || echo "❌ No reports found"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: reports/
+          retention-days: 90
+
+
