@@ -59,7 +59,8 @@ class Metric(ABC):
                     name="test_coverage",
                     label="カバレッジ (%)",
                     type=MEASURED,
-                    direction=HIGHER
+                    direction=HIGHER,
+                    threshold=80.0  # オプション: 閾値を指定
                 )
             
             def extract(self, testcase_name, log_dir, log_content):
@@ -70,11 +71,12 @@ class Metric(ABC):
                 return 0.0
     """
     
-    def __init__(self, name: str, label: str, type: str, direction: str):
+    def __init__(self, name: str, label: str, type: str, direction: str, threshold=None):
         self.name = name
         self.label = label
         self.type = type
         self.direction = direction
+        self.threshold = threshold  # 閾値（オプション）
     
     @abstractmethod
     def extract(self, testcase_name: str, log_dir: str, log_content: str):
@@ -94,7 +96,8 @@ class LatencyMetric(Metric):
             name="latency_ms",
             label="レイテンシ (ms)",
             type=MEASURED,
-            direction=LOWER
+            direction=LOWER,
+            threshold=2000  # 2秒以内
         )
     
     def extract(self, testcase_name: str, log_dir: str, log_content: str):
@@ -113,7 +116,8 @@ class ErrorCountMetric(Metric):
             name="error_count",
             label="エラー数",
             type=MEASURED,
-            direction=LOWER
+            direction=LOWER,
+            threshold=0  # エラーゼロ必須
         )
     
     def extract(self, testcase_name: str, log_dir: str, log_content: str):
@@ -132,7 +136,8 @@ class WarningCountMetric(Metric):
             name="warning_count",
             label="警告数",
             type=MEASURED,
-            direction=LOWER
+            direction=LOWER,
+            threshold=0  # 例: 警告は許容しない
         )
     
     def extract(self, testcase_name: str, log_dir: str, log_content: str):
@@ -197,7 +202,7 @@ def _save_testcase_details_csv(metrics_list: List[Metric], metric_names: List[st
     is_old_version = "sim_old" in log_path
     version_label = "old" if is_old_version else "new"
     
-    csv_path = os.path.join("tmp", "testcase_details.csv")
+    csv_path = os.path.join("tmp", "verification_metrics.csv")
     os.makedirs("tmp", exist_ok=True)
     
     testcase_rows = []
@@ -290,10 +295,25 @@ def process_metrics(metrics_classes: List):
     metric_types = {name: spec.type for name, spec in metric_spec.items()}
     metric_evaluation = {name: spec.evaluation for name, spec in metric_spec.items()}
     
+    # Extract thresholds from metric instances
+    # Validate: COMPARISON metrics should not have thresholds
+    metric_thresholds = {}
+    for m in metric_instances:
+        if m.threshold is not None:
+            if m.type == COMPARISON:
+                # Warning: COMPARISON metrics cannot have thresholds
+                print(f"Warning: Metric '{m.name}' has type=COMPARISON but threshold={m.threshold} is set. "
+                      f"Thresholds are not applicable to comparison metrics and will be ignored.", 
+                      file=sys.stderr)
+            else:
+                # Valid threshold for MEASURED metrics
+                metric_thresholds[m.name] = m.threshold
+    
     # Determine version
     log_path = os.getenv("NEW_LOG_PATH", "sim_new/aggregated.log")
     is_old_version = "sim_old" in log_path
     
+
     # Output metrics
     for metric_name in metric_spec.keys():
         spec = metric_spec[metric_name]
@@ -309,6 +329,7 @@ def process_metrics(metrics_classes: List):
     print(f"METRIC_DISPLAY_NAMES={json.dumps(display_names, ensure_ascii=False)}")
     print(f"METRIC_TYPES={json.dumps(metric_types, ensure_ascii=False)}")
     print(f"METRIC_EVALUATION={json.dumps(metric_evaluation, ensure_ascii=False)}")
+    print(f"METRIC_THRESHOLDS={json.dumps(metric_thresholds, ensure_ascii=False)}")
     
     # Save per-testcase details (include all metrics)
     all_metrics = list(metric_spec.keys())

@@ -1,0 +1,24 @@
+{
+  "project": "python-test-suite",
+  "old_version": "3.9",
+  "new_version": "3.14",
+  "description": "Pythonバージョンアップグレード検証。python_old と python_new で検証するバージョンを指定してください。",
+    
+  "tool_config": {
+    "python": {
+      "memory_monitoring": true,
+      "psutil_required": false
+    }
+  },
+  
+  "debug_mode": false,
+  "dry_run": false,
+  
+  "directories": {
+    "testcases": "testcases",
+    "sim_new": "sim_new",
+    "sim_old": "sim_old",
+    "tmp": "tmp",
+    "reports": "reports"
+  }
+}

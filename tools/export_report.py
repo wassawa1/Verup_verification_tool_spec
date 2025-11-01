@@ -181,7 +181,7 @@ def _load_testcase_details_csv() -> dict:
             }
         }
     """
-    csv_path = os.path.join("tmp", "testcase_details.csv")
+    csv_path = os.path.join("tmp", "verification_metrics.csv")
     
     testcase_details = {}
     
@@ -269,21 +269,38 @@ def build_markdown_report(context):
         lines.append(f"| **新バージョン** | {context.get('new_version', 'N/A')} |")
         if context.get('testcases_count'):
             lines.append(f"| **テストケース数** | {context.get('testcases_count')} |")
-        
+        lines.append("")
     
     # Add per-testcase details section (NO AGGREGATION)
     testcase_details = context.get('testcase_details')
     if testcase_details:
         all_metrics = context.get('all_metrics', [])
         metric_types = context.get('metric_types', {})
+        metric_evaluation = context.get('metric_evaluation', {})
         lines.append("\n## 📝 テストケース別詳細\n")
         
         # Get metric display names for dynamic column headers
         display_names = {name: disp for name, disp in all_metrics}
         
-        # Get thresholds
-        threshold_latency = context.get('threshold_latency', 'N/A')
-        threshold_errors = context.get('threshold_errors', 'N/A')
+        # Get all thresholds dynamically from context (THRESHOLD_* pattern)
+        # Priority: metric_thresholds (from monitor.py) > threshold_* (from scoreboard.py)
+        thresholds = {}
+        
+        # First, load from monitor.py (METRIC_THRESHOLDS)
+        metric_thresholds = context.get('metric_thresholds', {})
+        for metric_name, threshold_value in metric_thresholds.items():
+            if threshold_value is not None:
+                thresholds[metric_name] = threshold_value
+        
+        # Then, load from context (scoreboard.py compatibility)
+        for key, value in context.items():
+            if key.startswith('threshold_'):
+                metric_name = key.replace('threshold_', '')
+                # Only add if not already defined by monitor.py
+                if metric_name not in thresholds:
+                    threshold_val = to_number(value)
+                    if threshold_val is not None:
+                        thresholds[metric_name] = threshold_val
         
         for testcase_name in sorted(testcase_details.keys()):
             tc_data = testcase_details[testcase_name]
@@ -343,20 +360,30 @@ def build_markdown_report(context):
                     new_str = format_value(new_value)
                     old_str = format_value(old_value) if has_old_data else None
                     
-                    # Determine pass/fail for measured metrics
+                    # Determine pass/fail for measured metrics (dynamic threshold check)
                     judgment = "○"  # Default pass
-                    if "latency" in metric_key or "ms" in metric_key:
-                        if isinstance(new_value, (int, float)) and new_value > threshold_latency:
-                            judgment = "✗"
-                    elif "error" in metric_key:
-                        if isinstance(new_value, (int, float)) and new_value > threshold_errors:
-                            judgment = "✗"
+                    threshold_value = thresholds.get(metric_key)
+                    if threshold_value is not None and isinstance(new_value, (int, float)):
+                        # Get evaluation direction from context
+                        metric_eval = metric_evaluation.get(metric_key, "lower_is_better")
+                        if metric_eval == "lower_is_better":
+                            if new_value > threshold_value:
+                                judgment = "✗"
+                        elif metric_eval == "higher_is_better":
+                            if new_value < threshold_value:
+                                judgment = "✗"
                 
-                # Determine threshold
-                if "latency" in metric_key or "ms" in metric_key:
-                    threshold_str = f"{threshold_latency} ms"
-                elif "error" in metric_key:
-                    threshold_str = f"{threshold_errors}"
+                # Determine threshold display (dynamic)
+                threshold_value = thresholds.get(metric_key)
+                if threshold_value is not None:
+                    if "size" in metric_key or ("kb" in metric_key and "vcd" not in metric_key):
+                        threshold_str = f"{threshold_value:.2f} KB" if isinstance(threshold_value, float) else f"{threshold_value} KB"
+                    elif "similarity" in metric_key or "rate" in metric_key:
+                        threshold_str = f"{threshold_value:.1f}%" if isinstance(threshold_value, float) else f"{threshold_value}%"
+                    elif "ms" in metric_key:
+                        threshold_str = f"{threshold_value} ms"
+                    else:
+                        threshold_str = f"{threshold_value}"
                 else:
                     threshold_str = "—"
                 
@@ -491,34 +518,19 @@ def main():
     # STEP 4: EXTRACT INFRASTRUCTURE VARIABLES (NON-METRICS)
     # ========================================================================
     # These are NOT discovered dynamically - they're infrastructure:
-    #  - THRESHOLD_LATENCY, THRESHOLD_ERRORS (from scoreboard.py)
     #  - PROJECT, OLD_VERSION, NEW_VERSION (from envs.py)
     #  - TESTCASES_COUNT (from driver.py)
     # ========================================================================
-    
-    thr_lat = to_number(combined_env.get("THRESHOLD_LATENCY")) or 2000
-    thr_err = to_number(combined_env.get("THRESHOLD_ERRORS")) or 0
     
     project = combined_env.get("PROJECT", "design_verification")
     old_version = combined_env.get("OLD_VERSION", "N/A")
     new_version = combined_env.get("NEW_VERSION", "N/A")
     testcases_count = to_number(combined_env.get("TESTCASES_COUNT"))
     
-    # ========================================================================
-    # STEP 5: PASS/FAIL DECISION (USES SPECIFIC METRICS)
-    # ========================================================================
-    # Only latency_ms and error_count affect pass/fail
-    # Other metrics are informational only
-    # ========================================================================
-    
-    lat = metrics.get("latency_ms")
-    err = metrics.get("error_count")
-    
-    passed, messages = decide(lat, err, thr_lat, thr_err)
     generated_at = datetime.datetime.now().isoformat()
     
     # ========================================================================
-    # STEP 6: LOAD DISPLAY NAMES FROM MONITOR.PY
+    # STEP 5: LOAD DISPLAY NAMES FROM MONITOR.PY
     # ========================================================================
     # Display names are defined in monitor.py and passed via METRIC_DISPLAY_NAMES
     # This ensures export_report.py has ZERO hardcoded metric names
@@ -545,8 +557,54 @@ def main():
     except:
         metric_evaluation = {}
     
+    # Load metric thresholds from monitor.py
+    metric_thresholds_json = combined_env.get("METRIC_THRESHOLDS", "{}")
+    try:
+        metric_thresholds = json.loads(metric_thresholds_json)
+    except:
+        metric_thresholds = {}
+    
     # Load testcase details from CSV file (generated by monitor.py)
     testcase_details = _load_testcase_details_csv()
+    
+    # ========================================================================
+    # PASS/FAIL DECISION (USES DYNAMIC THRESHOLDS PER TESTCASE)
+    # ========================================================================
+    # Check each testcase individually against thresholds
+    # ========================================================================
+    
+    # Get dynamic thresholds and evaluation directions from environment
+    metric_thresholds_json = combined_env.get('METRIC_THRESHOLDS', '{}')
+    metric_evaluation_json = combined_env.get('METRIC_EVALUATION', '{}')
+    try:
+        metric_thresholds = json.loads(metric_thresholds_json)
+        metric_evaluation = json.loads(metric_evaluation_json)
+    except json.JSONDecodeError:
+        metric_thresholds = {}
+        metric_evaluation = {}
+    
+    # Check if any testcase exceeds its threshold
+    passed = True
+    messages = []
+    for testcase_name, tc_data in testcase_details.items():
+        new_details = tc_data.get("new", {})
+        
+        for metric_name, threshold_value in metric_thresholds.items():
+            if threshold_value is None:
+                continue
+            actual_value = new_details.get(metric_name)
+            if actual_value is None:
+                continue
+            
+            direction = metric_evaluation.get(metric_name, 'lower_is_better')
+            if direction == 'lower_is_better':
+                if actual_value > threshold_value:
+                    passed = False
+                    messages.append(f"{testcase_name}/{metric_name}: {actual_value} > {threshold_value}")
+            elif direction == 'higher_is_better':
+                if actual_value < threshold_value:
+                    passed = False
+                    messages.append(f"{testcase_name}/{metric_name}: {actual_value} < {threshold_value}")
     
     # Build all_metrics list from discovered metrics (in discovery order)
     # ALL metrics are treated equally - no special cases
@@ -580,9 +638,8 @@ def main():
         "all_metrics": all_metrics,      # [(metric_name, display_name), ...]
         "metric_types": metric_types,    # {metric_name -> "measured" or "comparison"}
         "metric_evaluation": metric_evaluation,  # {metric_name -> "lower_is_better" or "neutral"}
+        "metric_thresholds": metric_thresholds,  # {metric_name -> threshold_value} from monitor.py
         "testcase_details": testcase_details,    # {testcase_name -> {latency_ms, errors, vcd}}
-        "threshold_latency": thr_lat,
-        "threshold_errors": thr_err,
         "passed": bool(passed),
         "messages": messages,
         "project": project,

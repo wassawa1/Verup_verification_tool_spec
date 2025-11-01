@@ -34,7 +34,16 @@ def load_settings():
         }
     
     with open(settings_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        content = f.read()
+        # Remove // style comments
+        lines = []
+        for line in content.split('\n'):
+            if '//' in line:
+                before_comment = line.split('//')[0]
+                lines.append(before_comment)
+            else:
+                lines.append(line)
+        return json.loads('\n'.join(lines))
 
 
 def run_stage(stage_num, script, env_vars=None, directories=None):
@@ -66,7 +75,8 @@ def run_stage(stage_num, script, env_vars=None, directories=None):
             print(output)
         
         if result.returncode != 0:
-            print(f"⚠️  Stage {stage_num} exited with code {result.returncode}")
+            print(f"❌ Stage {stage_num} failed with exit code {result.returncode}", file=sys.stderr)
+            return False
         
         return True
     except subprocess.TimeoutExpired:
@@ -134,8 +144,7 @@ def main():
         "PROJECT": stage1_output.get("project", os.environ.get("PROJECT", "design_verification")),
         "OLD_VERSION": stage1_output.get("old_version", os.environ.get("OLD_VERSION", "v1.0")),
         "NEW_VERSION": stage1_output.get("new_version", os.environ.get("NEW_VERSION", "v2.0")),
-        "THRESHOLD_LATENCY": os.environ.get("THRESHOLD_LATENCY", "2000"),
-        "THRESHOLD_ERRORS": os.environ.get("THRESHOLD_ERRORS", "0"),
+        # Thresholds are now dynamically defined in monitor.py
     }
     
     tmp_dir = directories["tmp"]
@@ -188,7 +197,7 @@ def main():
         old_output_file = f"{tmp_dir}/stage3_old_output.txt"
         with open(old_output_file, "w", encoding="utf-8") as f:
             result = subprocess.run(
-                ["python", "scripts/monitor.py"],
+                ["python3", "scripts/monitor.py"],
                 env={**os.environ, **old_env},
                 stdout=f,
                 stderr=subprocess.STDOUT,
